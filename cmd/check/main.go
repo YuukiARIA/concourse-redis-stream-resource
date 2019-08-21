@@ -9,6 +9,27 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+func performCheck(request models.CheckRequest, redisConn redis.Conn) (*models.CheckResponse, error) {
+	firstID := "-"
+	if request.Version != nil {
+		firstID = request.Version.ID
+	}
+
+	ret, err := redisConn.Do("XRANGE", request.Source.Key, firstID, "+")
+	if err != nil {
+		return nil, err
+	}
+
+	var response models.CheckResponse
+	for _, entry := range ret.([]interface{}) {
+		entry := entry.([]interface{})
+		version := models.Version{ID: string(entry[0].([]byte))}
+		response = append(response, version)
+	}
+
+	return &response, nil
+}
+
 func main() {
 	var request models.CheckRequest
 	if err := json.NewDecoder(os.Stdin).Decode(&request); err != nil {
@@ -22,21 +43,10 @@ func main() {
 		panic(err)
 	}
 
-	firstID := "-"
-	if request.Version != nil {
-		firstID = request.Version.ID
-	}
-	ret, err := conn.Do("XRANGE", request.Source.Key, firstID, "+")
+	response, err := performCheck(request, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		panic(err)
-	}
-
-	var response models.CheckResponse
-	for _, entry := range ret.([]interface{}) {
-		entry := entry.([]interface{})
-		version := models.Version{ID: string(entry[0].([]byte))}
-		response = append(response, version)
 	}
 
 	if err := json.NewEncoder(os.Stdout).Encode(&response); err != nil {
