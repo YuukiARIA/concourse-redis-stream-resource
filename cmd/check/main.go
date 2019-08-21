@@ -26,7 +26,6 @@ func main() {
 	if request.Version != nil {
 		firstID = request.Version.ID
 	}
-	fmt.Fprintf(os.Stderr, "first id = %s\n", firstID)
 	ret, err := conn.Do("XRANGE", request.Source.Key, firstID, "+")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
