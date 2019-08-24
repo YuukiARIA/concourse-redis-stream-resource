@@ -3,19 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/YuukiARIA/concourse-redis-stream-resource/models"
+	"github.com/YuukiARIA/concourse-redis-stream-resource/resource"
 	"github.com/gomodule/redigo/redis"
 )
 
-func writeFileString(filePath, content string) error {
-	return ioutil.WriteFile(filePath, []byte(content), 0644)
-}
-
-func performGet(request models.GetRequest, basePath string, redisConn redis.Conn) (*models.GetResponse, error) {
+func performGet(request models.GetRequest, fileRepository resource.FileRepository, redisConn redis.Conn) (*models.GetResponse, error) {
 	ret, err := redisConn.Do("XRANGE", request.Source.Key, request.Version.ID, request.Version.ID)
 	if err != nil {
 		return nil, err
@@ -32,7 +27,7 @@ func performGet(request models.GetRequest, basePath string, redisConn redis.Conn
 	metadata := make([]models.MetadataEntry, 0)
 	for _, fieldName := range request.Source.Fields {
 		value := fields[fieldName]
-		if err := writeFileString(filepath.Join(basePath, fieldName), value); err != nil {
+		if err := fileRepository.Write(fieldName, value); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 			return nil, err
 		}
@@ -50,7 +45,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error: missing argument")
 		os.Exit(1)
 	}
-	basePath := os.Args[1]
+	fileRepository := resource.NewFileSystemRepository(os.Args[1])
 
 	var request models.GetRequest
 	if err := json.NewDecoder(os.Stdin).Decode(&request); err != nil {
@@ -64,7 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	response, err := performGet(request, basePath, conn)
+	response, err := performGet(request, fileRepository, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		panic(err)
