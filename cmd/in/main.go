@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -10,16 +11,37 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+func processXRangeEntry(entry interface{}) (string, map[string]string, error) {
+	pair, ok := entry.([]interface{})
+	if !ok {
+		return "", nil, errors.New("type mismatch (pair)")
+	}
+
+	idBytes, ok := pair[0].([]byte)
+	if !ok {
+		return "", nil, errors.New("type mismatch (id)")
+	}
+	id := string(idBytes)
+
+	fields, err := redis.StringMap(pair[1], nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return id, fields, nil
+}
+
 func performGet(request models.GetRequest, fileRepository resource.FileRepository, redisConn redis.Conn) (*models.GetResponse, error) {
 	entries, err := redis.Values(redisConn.Do("XRANGE", request.Source.Key, request.Version.ID, request.Version.ID))
 	if err != nil {
 		return nil, err
 	}
 
-	entry := entries[0].([]interface{})
-	id := string(entry[0].([]byte))
+	if len(entries) < 1 {
+		return nil, errors.New("no entry")
+	}
 
-	fields, err := redis.StringMap(entry[1], nil)
+	id, fields, err := processXRangeEntry(entries[0])
 	if err != nil {
 		return nil, err
 	}
