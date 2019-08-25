@@ -11,15 +11,15 @@ import (
 )
 
 func performGet(request models.GetRequest, fileRepository resource.FileRepository, redisConn redis.Conn) (*models.GetResponse, error) {
-	ret, err := redisConn.Do("XRANGE", request.Source.Key, request.Version.ID, request.Version.ID)
+	entries, err := redis.Values(redisConn.Do("XRANGE", request.Source.Key, request.Version.ID, request.Version.ID))
 	if err != nil {
 		return nil, err
 	}
 
-	record := ret.([]interface{})[0].([]interface{})
-	id := string(record[0].([]byte))
+	entry := entries[0].([]interface{})
+	id := string(entry[0].([]byte))
 
-	fields, err := redis.StringMap(record[1], nil)
+	fields, err := redis.StringMap(entry[1], nil)
 	if err != nil {
 		return nil, err
 	}
