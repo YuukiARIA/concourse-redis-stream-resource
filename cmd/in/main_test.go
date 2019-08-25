@@ -42,6 +42,34 @@ var conn = mockRedisConn{
 
 var fileRepository = mock.NewMemoryFileRepository()
 
+func Test_processXRangeEntry(t *testing.T) {
+	expectedID := "1234567890123-0"
+	expectedKey := "key-1"
+	expectedValue := "value-1"
+
+	entry := []interface{}{
+		[]byte(expectedID),
+		[]interface{}{
+			[]byte(expectedKey),
+			[]byte(expectedValue),
+		},
+	}
+
+	id, fields, err := processXRangeEntry(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != expectedID {
+		t.Fatalf("unexpected id: expected=%s, actual=%s\n", expectedID, id)
+	}
+	if len(fields) != 1 {
+		t.Fatalf("unexpected map count: expected=%d, actual=%d\n", 1, len(fields))
+	}
+	if fields[expectedKey] != expectedValue {
+		t.Fatalf("unexpected value: expected=%s, actual=%s\n", expectedValue, fields[expectedKey])
+	}
+}
+
 func Test_performGet(t *testing.T) {
 	request := models.GetRequest{
 		Source: models.Source{
