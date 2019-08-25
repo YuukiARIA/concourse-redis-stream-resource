@@ -1,45 +1,23 @@
 package main
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/YuukiARIA/concourse-redis-stream-resource/mock"
 	"github.com/YuukiARIA/concourse-redis-stream-resource/models"
-	"github.com/gomodule/redigo/redis"
 )
 
-type mockRedisConn struct {
-	redis.Conn
-	xrangeResponse map[string]interface{}
-}
-
-func (m mockRedisConn) Do(command string, args ...interface{}) (interface{}, error) {
-	if command == "XRANGE" {
-		key := args[0].(string)
-		return m.xrangeResponse[key], nil
-	} else {
-		return nil, errors.New("unsupported")
-	}
-}
-
-var conn = mockRedisConn{
-	xrangeResponse: map[string]interface{}{
-		"sample": []interface{}{
-			[]interface{}{
-				[]byte("1111111111111-0"),
-				[][]byte{
-					[]byte("name"),
-					[]byte("test"),
-					[]byte("value"),
-					[]byte("123"),
-				},
-			},
-		},
-		"empty": []interface{}{},
-	},
-}
-
 func Test_performCheck(t *testing.T) {
+	redisConn := mock.NewRedisConn()
+	redisConn.AddXRangeReply(
+		"sample",
+		"1111111111111-0",
+		map[string]string{
+			"name":  "test",
+			"value": "123",
+		},
+	)
+
 	request := models.CheckRequest{
 		Source: models.Source{
 			Host:     "localhost:6379",
@@ -50,7 +28,7 @@ func Test_performCheck(t *testing.T) {
 		Version: nil,
 	}
 
-	response, err := performCheck(request, conn)
+	response, err := performCheck(request, redisConn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,6 +44,16 @@ func Test_performCheck(t *testing.T) {
 }
 
 func Test_performCheck_NoEntry(t *testing.T) {
+	redisConn := mock.NewRedisConn()
+	redisConn.AddXRangeReply(
+		"sample",
+		"1111111111111-0",
+		map[string]string{
+			"name":  "test",
+			"value": "123",
+		},
+	)
+
 	request := models.CheckRequest{
 		Source: models.Source{
 			Host:     "localhost:6379",
@@ -76,7 +64,7 @@ func Test_performCheck_NoEntry(t *testing.T) {
 		Version: nil,
 	}
 
-	response, err := performCheck(request, conn)
+	response, err := performCheck(request, redisConn)
 	if err != nil {
 		t.Fatal(err)
 	}
