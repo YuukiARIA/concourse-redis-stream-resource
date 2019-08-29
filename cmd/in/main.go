@@ -80,6 +80,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		panic(err)
 	}
+	defer conn.Close()
 
 	response, err := performGet(request, fileRepository, conn)
 	if err != nil {

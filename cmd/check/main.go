@@ -42,6 +42,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		panic(err)
 	}
+	defer conn.Close()
 
 	response, err := performCheck(request, conn)
 	if err != nil {
